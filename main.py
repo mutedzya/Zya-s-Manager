@@ -128,4 +128,4 @@ async def on_guild_channel_update(before, after):
                 await channel.send(f"🚀 **Server Boosted!** Thank you for boosting the server! Current level: {after.guild.premium_tier}")
 
 # Run the bot (Replace 'YOUR_BOT_TOKEN' with your actual token)
-bot.run('MTUyMjM1OTExOTgyOTQwNTc3Ng.Gu4lMB.s-3_ehzUJqwjCqBNahff4OgZpJ8awfSTIex5d0')
+bot.run('YOUR_BOT_TOKEN')

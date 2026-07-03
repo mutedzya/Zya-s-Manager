@@ -4,6 +4,7 @@ from discord.ext import commands
 import datetime
 import asyncio
 from quart import Quart
+import os
 
 # 1. Setup a tiny background web server for Render to ping
 app = Quart(__name__)
@@ -13,17 +14,22 @@ async def home():
     return "Zya's Manager is alive!"
 
 async def run_webserver():
-    # Render provides a 'PORT' environment variable automatically
-    import os
-    port = int(os.environ.get("PORT", 8080))
+    # Render routes traffic to port 10000 by default
+    port = int(os.environ.get("PORT", 10000))
     await app.run_task(host="0.0.0.0", port=port)
 
-# 2. Setup your Discord Bot
+# 2. Setup your Discord Bot with Proxy integration
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix="/", intents=intents)
+# Added proxy argument to bypass Render's rate-limited shared IP pool
+bot = commands.Bot(
+    command_prefix="/", 
+    intents=intents, 
+    proxy="http://api.discord.proxy.io"
+)
+
 server_configs = {}
 HATE_SPEECH_WORDS = ["badword1", "badword2"] 
 
@@ -73,7 +79,11 @@ async def warn(interaction: discord.Interaction, member: discord.Member, reason:
 async def on_message(message):
     if message.author == bot.user:
         return
-    guild_id = message.guild.id
+    
+    # Safety fallback if message is outside a guild (DM)
+    if not message.guild:
+        return
+
     if any(word in message.content.lower() for word in HATE_SPEECH_WORDS):
         await message.delete()
         try:
@@ -83,6 +93,7 @@ async def on_message(message):
         except discord.Forbidden:
             pass
         return
+        
     if message.attachments:
         for attachment in message.attachments:
             filename = attachment.filename.lower()
@@ -117,9 +128,11 @@ async def on_guild_channel_update(before, after):
 
 # 3. Start both the web server and the bot together
 async def main():
-    import os
-    # Fetch token securely from Render environment variables
+    # Make sure "YOUR_BOT_TOKEN" matches the Environment Variable Key name in Render exactly
     token = os.environ.get("YOUR_BOT_TOKEN") 
+    if not token:
+        raise ValueError("Bot token environment variable is missing!")
+        
     await asyncio.gather(
         run_webserver(),
         bot.start(token)
